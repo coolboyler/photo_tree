@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL支持检测</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+        }
+        h1 {
+            color: #f0abfc;
+            margin-bottom: 20px;
+        }
+        .message {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .tips {
+            text-align: left;
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        .tip-item {
+            margin: 10px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        .tip-item:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #f0abfc;
+        }
+        .button {
+            background: linear-gradient(135deg, #f0abfc, #c026d3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background: linear-gradient(135deg, #e879f9, #a21caf);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚠️ WebGL支持检测</h1>
+
+        <div class="message">
+            <p>您的浏览器或设备可能不支持WebGL，或者WebGL上下文已丢失。</p>
+            <p>3D圣诞树应用需要WebGL支持才能正常运行。</p>
+        </div>
+
+        <div class="tips">
+            <h3>可能的解决方案：</h3>
+            <div class="tip-item">更新浏览器到最新版本（Chrome、Firefox、Edge等）</div>
+            <div class="tip-item">确保浏览器已启用WebGL支持</div>
+            <div class="tip-item">检查显卡驱动程序是否为最新版本</div>
+            <div class="tip-item">关闭其他占用GPU资源的应用</div>
+            <div class="tip-item">尝试使用硬件加速模式</div>
+            <div class="tip-item">如果使用笔记本电脑，请连接电源适配器</div>
+        </div>
+
+        <button class="button" onclick="location.reload()">重新加载页面</button>
+        <button class="button" onclick="window.location.href='/'">返回首页</button>
+
+        <script>
+            // 检测WebGL支持
+            function checkWebGL() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    return !!gl;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            // 如果WebGL可用，尝试返回应用
+            if (checkWebGL()) {
+                console.log('WebGL is available, redirecting to app...');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 3000);
+            }
+        </script>
+    </div>
+</body>
+</html>

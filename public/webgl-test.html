@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL诊断工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #f0abfc;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .result {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            color: #4ade80;
+        }
+        .warning {
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid rgba(255, 255, 0, 0.3);
+            color: #fbbf24;
+        }
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: #f87171;
+        }
+        .button {
+            background: linear-gradient(135deg, #f0abfc, #c026d3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background: linear-gradient(135deg, #e879f9, #a21caf);
+        }
+        .test-canvas {
+            border: 2px solid #444;
+            margin: 10px 0;
+            display: block;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .info-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .info-label {
+            color: #a78bfa;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            color: #e5e7eb;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 WebGL诊断工具</h1>
+
+        <div class="section">
+            <h2>WebGL支持检测</h2>
+            <div id="webgl-result" class="result">检测中...</div>
+            <canvas id="test-canvas" class="test-canvas" width="200" height="100"></canvas>
+            <button class="button" onclick="testWebGL()">重新检测</button>
+        </div>
+
+        <div class="section">
+            <h2>浏览器信息</h2>
+            <div class="info-grid" id="browser-info">
+                <!-- 浏览器信息将通过JavaScript填充 -->
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>GPU信息</h2>
+            <div class="info-grid" id="gpu-info">
+                <!-- GPU信息将通过JavaScript填充 -->
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>性能测试</h2>
+            <div id="performance-result" class="result">准备测试...</div>
+            <button class="button" onclick="runPerformanceTest()">运行性能测试</button>
+            <button class="button" onclick="testThreeJS()">测试Three.js渲染</button>
+        </div>
+
+        <div class="section">
+            <h2>解决方案</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Chrome浏览器</div>
+                    <div class="info-value">
+                        1. 地址栏输入: chrome://settings/system<br>
+                        2. 开启"使用硬件加速模式(如果可用)"<br>
+                        3. 重启浏览器
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Firefox浏览器</div>
+                    <div class="info-value">
+                        1. 地址栏输入: about:config<br>
+                        2. 搜索: webgl.disabled<br>
+                        3. 确保值为 false
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Edge浏览器</div>
+                    <div class="info-value">
+                        1. 地址栏输入: edge://settings/system<br>
+                        2. 开启"使用硬件加速(如果可用)"<br>
+                        3. 重启浏览器
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">通用解决方案</div>
+                    <div class="info-value">
+                        1. 更新显卡驱动程序<br>
+                        2. 关闭其他占用GPU的应用<br>
+                        3. 重启电脑<br>
+                        4. 尝试其他浏览器
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" style="text-align: center;">
+            <button class="button" onclick="window.location.href='/'">返回3D圣诞树</button>
+            <button class="button" onclick="window.open('https://get.webgl.org/', '_blank')">WebGL官方测试</button>
+        </div>
+    </div>
+
+    <script>
+        // 检测WebGL支持
+        function testWebGL() {
+            const canvas = document.getElementById('test-canvas');
+            const resultDiv = document.getElementById('webgl-result');
+
+            try {
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+                if (gl) {
+                    // 测试渲染
+                    gl.clearColor(0.2, 0.4, 0.8, 1.0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+
+                    const info = gl.getExtension('WEBGL_debug_renderer_info');
+                    const renderer = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : '未知';
+                    const vendor = info ? gl.getParameter(info.UNMASKED_VENDOR_WEBGL) : '未知';
+
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        ✅ WebGL支持正常<br>
+                        <strong>渲染器:</strong> ${renderer}<br>
+                        <strong>供应商:</strong> ${vendor}<br>
+                        <strong>版本:</strong> ${gl.getParameter(gl.VERSION)}<br>
+                        <strong>着色器版本:</strong> ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}
+                    `;
+
+                    // 更新GPU信息
+                    updateGPUInfo(renderer, vendor);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '❌ WebGL不支持或已被禁用';
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ WebGL检测失败: ${error.message}`;
+            }
+        }
+
+        // 更新浏览器信息
+        function updateBrowserInfo() {
+            const browserInfo = document.getElementById('browser-info');
+            const userAgent = navigator.userAgent;
+
+            let browserName = '未知';
+            let browserVersion = '未知';
+            let os = '未知';
+
+            // 检测浏览器
+            if (userAgent.indexOf('Chrome') > -1 && userAgent.indexOf('Edg') === -1) {
+                browserName = 'Chrome';
+                const match = userAgent.match(/Chrome\/(\d+\.\d+)/);
+                browserVersion = match ? match[1] : '未知';
+            } else if (userAgent.indexOf('Firefox') > -1) {
+                browserName = 'Firefox';
+                const match = userAgent.match(/Firefox\/(\d+\.\d+)/);
+                browserVersion = match ? match[1] : '未知';
+            } else if (userAgent.indexOf('Edg') > -1) {
+                browserName = 'Edge';
+                const match = userAgent.match(/Edg\/(\d+\.\d+)/);
+                browserVersion = match ? match[1] : '未知';
+            } else if (userAgent.indexOf('Safari') > -1 && userAgent.indexOf('Chrome') === -1) {
+                browserName = 'Safari';
+                const match = userAgent.match(/Version\/(\d+\.\d+)/);
+                browserVersion = match ? match[1] : '未知';
+            }
+
+            // 检测操作系统
+            if (userAgent.indexOf('Windows') > -1) os = 'Windows';
+            else if (userAgent.indexOf('Mac') > -1) os = 'macOS';
+            else if (userAgent.indexOf('Linux') > -1) os = 'Linux';
+            else if (userAgent.indexOf('Android') > -1) os = 'Android';
+            else if (userAgent.indexOf('iOS') > -1) os = 'iOS';
+
+            browserInfo.innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">浏览器</div>
+                    <div class="info-value">${browserName} ${browserVersion}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">操作系统</div>
+                    <div class="info-value">${os}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">用户代理</div>
+                    <div class="info-value" style="font-size: 12px;">${userAgent}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">屏幕分辨率</div>
+                    <div class="info-value">${screen.width} × ${screen.height}</div>
+                </div>
+            `;
+        }
+
+        // 更新GPU信息
+        function updateGPUInfo(renderer, vendor) {
+            const gpuInfo = document.getElementById('gpu-info');
+            gpuInfo.innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">GPU渲染器</div>
+                    <div class="info-value">${renderer}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">GPU供应商</div>
+                    <div class="info-value">${vendor}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">颜色深度</div>
+                    <div class="info-value">${screen.colorDepth}位</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">像素比例</div>
+                    <div class="info-value">${window.devicePixelRatio}</div>
+                </div>
+            `;
+        }
+
+        // 性能测试
+        function runPerformanceTest() {
+            const resultDiv = document.getElementById('performance-result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '性能测试中...';
+
+            setTimeout(() => {
+                const startTime = performance.now();
+                let operations = 0;
+
+                // 执行一些计算操作
+                for (let i = 0; i < 1000000; i++) {
+                    operations += Math.sqrt(i) * Math.random();
+                }
+
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+
+                let performanceLevel = '优秀';
+                let className = 'success';
+
+                if (duration > 100) {
+                    performanceLevel = '一般';
+                    className = 'warning';
+                }
+                if (duration > 500) {
+                    performanceLevel = '较差';
+                    className = 'error';
+                }
+
+                resultDiv.className = `result ${className}`;
+                resultDiv.innerHTML = `
+                    ⚡ 性能测试完成<br>
+                    <strong>耗时:</strong> ${duration.toFixed(2)} 毫秒<br>
+                    <strong>性能等级:</strong> ${performanceLevel}<br>
+                    <strong>操作数:</strong> 1,000,000 次
+                `;
+            }, 100);
+        }
+
+        // 测试Three.js渲染
+        function testThreeJS() {
+            const resultDiv = document.getElementById('performance-result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '加载Three.js测试...';
+
+            // 动态加载Three.js
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+            script.onload = () => {
+                try {
+                    const testCanvas = document.createElement('canvas');
+                    testCanvas.width = 400;
+                    testCanvas.height = 300;
+                    testCanvas.style.border = '2px solid #444';
+                    testCanvas.style.margin = '10px 0';
+
+                    const scene = new THREE.Scene();
+                    const camera = new THREE.PerspectiveCamera(75, 400/300, 0.1, 1000);
+                    const renderer = new THREE.WebGLRenderer({ canvas: testCanvas, antialias: false });
+
+                    const geometry = new THREE.BoxGeometry();
+                    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                    const cube = new THREE.Mesh(geometry, material);
+                    scene.add(cube);
+
+                    camera.position.z = 5;
+
+                    let frameCount = 0;
+                    const startTime = performance.now();
+
+                    function animate() {
+                        frameCount++;
+                        cube.rotation.x += 0.01;
+                        cube.rotation.y += 0.01;
+                        renderer.render(scene, camera);
+
+                        if (frameCount < 60) {
+                            requestAnimationFrame(animate);
+                        } else {
+                            const endTime = performance.now();
+                            const fps = (frameCount / ((endTime - startTime) / 1000)).toFixed(1);
+
+                            resultDiv.className = 'result success';
+                            resultDiv.innerHTML = `
+                                ✅ Three.js渲染测试完成<br>
+                                <strong>平均FPS:</strong> ${fps}<br>
+                                <strong>渲染帧数:</strong> ${frameCount}<br>
+                                <strong>测试时长:</strong> ${((endTime - startTime)/1000).toFixed(2)}秒
+                            `;
+                            resultDiv.appendChild(testCanvas);
+                        }
+                    }
+
+                    animate();
+                } catch (error) {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ Three.js测试失败: ${error.message}`;
+                }
+            };
+
+            script.onerror = () => {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ 无法加载Three.js库';
+            };
+
+            document.head.appendChild(script);
+        }
+
+        // 页面加载时自动运行检测
+        window.onload = function() {
+            updateBrowserInfo();
+            testWebGL();
+        };
+    </script>
+</body>
+</html>

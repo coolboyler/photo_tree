@@ -1,8 +1,9 @@
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { TreeScene } from './components/TreeScene';
 import { UIOverlay } from './components/UIOverlay';
 import { TreeConfig } from './types';
+import { getAllPhotos } from './services/localStorageService';
 
 const Loader = () => {
   return (
@@ -21,14 +22,38 @@ const DEFAULT_CONFIG: TreeConfig = {
   decoSize: 1.0,
 };
 
-// Default placeholder photos
-const DEFAULT_PHOTOS = Array.from({ length: 35 }).map((_, i) => 
-  `https://picsum.photos/400/500?random=${i + 100}`
+// Default placeholder photos (使用CORS友好的占位图)
+const DEFAULT_PHOTOS = Array.from({ length: 35 }).map((_, i) =>
+  `https://placehold.co/400x500/1a1a1a/ffffff?text=Photo+${i + 1}`
 );
 
 function App() {
   const [config, setConfig] = useState<TreeConfig>(DEFAULT_CONFIG);
   const [photos, setPhotos] = useState<string[]>(DEFAULT_PHOTOS);
+  const [loading, setLoading] = useState(false);
+
+  // 从Supabase加载已上传的图片
+  useEffect(() => {
+    const loadPhotosFromSupabase = async () => {
+      try {
+        setLoading(true);
+        const photoRecords = await getAllPhotos();
+        const photoUrls = photoRecords.map(record => record.url);
+
+        // 如果有从Supabase加载的图片，就使用它们
+        if (photoUrls.length > 0) {
+          setPhotos(photoUrls);
+        }
+      } catch (error) {
+        console.error('从Supabase加载图片失败:', error);
+        // 保持默认图片
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPhotosFromSupabase();
+  }, []);
 
   const handleAddPhotos = (newPhotos: string[]) => {
     setPhotos(prev => [...newPhotos, ...prev]);
@@ -36,13 +61,14 @@ function App() {
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden select-none">
+      {loading && <Loader />}
       <Suspense fallback={<Loader />}>
         <TreeScene config={config} photos={photos} />
       </Suspense>
-      <UIOverlay 
-        config={config} 
-        setConfig={setConfig} 
-        onAddPhotos={handleAddPhotos} 
+      <UIOverlay
+        config={config}
+        setConfig={setConfig}
+        onAddPhotos={handleAddPhotos}
       />
     </div>
   );

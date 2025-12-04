@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
-import { generateChristmasWish } from '../services/geminiService';
 import { TreeConfig } from '../types';
+import { uploadMultiplePhotos } from '../services/localStorageService';
 
 interface UIOverlayProps {
   config: TreeConfig;
@@ -10,25 +10,35 @@ interface UIOverlayProps {
 }
 
 export const UIOverlay: React.FC<UIOverlayProps> = ({ config, setConfig, onAddPhotos }) => {
-  const [wish, setWish] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [isPanelHidden, setIsPanelHidden] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleGenerateWish = async () => {
-    setLoading(true);
-    const message = await generateChristmasWish();
-    setWish(message);
-    setLoading(false);
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      const newUrls: string[] = [];
-      Array.from(files).forEach(file => {
-        newUrls.push(URL.createObjectURL(file));
-      });
-      onAddPhotos(newUrls);
+      try {
+        setUploading(true);
+        setUploadMessage('正在上传图片到云端...');
+
+        // 上传到Supabase
+        const uploadedUrls = await uploadMultiplePhotos(Array.from(files));
+
+        if (uploadedUrls.length > 0) {
+          setUploadMessage(`成功上传 ${uploadedUrls.length} 张图片`);
+          onAddPhotos(uploadedUrls);
+        } else {
+          setUploadMessage('上传失败，请重试');
+        }
+      } catch (error) {
+        console.error('上传失败:', error);
+        setUploadMessage('上传失败，请检查网络连接');
+      } finally {
+        setUploading(false);
+        // 3秒后清除消息
+        setTimeout(() => setUploadMessage(null), 3000);
+      }
     }
   };
 
@@ -39,22 +49,32 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ config, setConfig, onAddPh
   return (
     <div className="absolute inset-0 pointer-events-none z-10 flex">
       {/* Hidden File Input */}
-      <input 
-        type="file" 
-        multiple 
-        accept="image/*" 
+      <input
+        type="file"
+        multiple
+        accept="image/*"
         ref={fileInputRef}
         className="hidden"
         onChange={handleFileUpload}
       />
 
-      {/* Main Content Area (Left/Center) for Wish */}
+      {/* Show/Hide Panel Toggle Button */}
+      {isPanelHidden && (
+        <button
+          onClick={() => setIsPanelHidden(false)}
+          className="pointer-events-auto absolute top-6 right-6 z-20 bg-black/60 backdrop-blur-sm border border-fuchsia-500/30 text-fuchsia-300 text-xs tracking-widest px-4 py-2 rounded-full hover:bg-fuchsia-500/20 hover:border-fuchsia-400/50 transition-all duration-300 shadow-[0_0_15px_rgba(192,38,211,0.3)]"
+        >
+          SHOW CONTROLS
+        </button>
+      )}
+
+      {/* Main Content Area (Left/Center) for Upload Status */}
       <div className="flex-1 flex flex-col justify-end pb-12 px-8">
-         {wish && (
+         {uploadMessage && (
            <div className="pointer-events-auto self-start mb-4 max-w-md animate-fade-in-up">
              <div className="bg-black/40 backdrop-blur-md border border-fuchsia-500/30 p-6 rounded-lg shadow-[0_0_15px_rgba(192,38,211,0.2)]">
                 <p className="text-fuchsia-100 font-sans tracking-wide text-lg italic glow-text">
-                  "{wish}"
+                  {uploadMessage}
                 </p>
              </div>
            </div>
@@ -62,14 +82,21 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ config, setConfig, onAddPh
       </div>
 
       {/* Right Control Panel */}
-      <div className="w-80 h-full bg-black/60 backdrop-blur-xl border-l border-white/10 p-6 flex flex-col pointer-events-auto overflow-y-auto custom-scrollbar">
+      <div className={`w-80 h-full bg-black/60 backdrop-blur-xl border-l border-white/10 p-6 flex flex-col pointer-events-auto overflow-y-auto custom-scrollbar transition-all duration-300 ${isPanelHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         
         {/* Header */}
         <div className="mb-8 mt-2">
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-purple-400 tracking-tighter">
-            NEBULA <span className="font-light text-white">TREE</span>
-          </h1>
-          <div className="text-xs text-purple-300/60 tracking-widest mt-1 text-right">[HIDE]</div>
+          <div className="flex justify-between items-start">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-purple-400 tracking-tighter">
+              NEBULA <span className="font-light text-white">TREE</span>
+            </h1>
+            <button
+              onClick={() => setIsPanelHidden(!isPanelHidden)}
+              className="text-xs text-purple-300/60 tracking-widest hover:text-purple-300 transition-colors"
+            >
+              {isPanelHidden ? '[SHOW]' : '[HIDE]'}
+            </button>
+          </div>
         </div>
 
         {/* Add Memories Section */}
@@ -77,11 +104,16 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ config, setConfig, onAddPh
           <label className="text-xs font-bold text-amber-100/70 tracking-widest uppercase mb-3 block">
             Add Memories
           </label>
-          <button 
+          <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full py-3 border border-dashed border-fuchsia-500/50 rounded-lg text-fuchsia-200/80 hover:bg-fuchsia-500/10 hover:border-fuchsia-400 transition-all text-sm font-medium tracking-wide flex items-center justify-center gap-2"
+            disabled={uploading}
+            className="w-full py-3 border border-dashed border-fuchsia-500/50 rounded-lg text-fuchsia-200/80 hover:bg-fuchsia-500/10 hover:border-fuchsia-400 transition-all text-sm font-medium tracking-wide flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>+ Click to Upload Photos</span>
+            {uploading ? (
+              <span className="animate-pulse">上传中...</span>
+            ) : (
+              <span>+ Click to Upload Photos</span>
+            )}
           </button>
         </div>
 
@@ -134,21 +166,12 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({ config, setConfig, onAddPh
           </div>
         </div>
 
-        {/* Footer / AI Button */}
+        {/* Footer / Upload Info */}
         <div className="mt-8 pt-6 border-t border-white/10">
-            <button
-                onClick={handleGenerateWish}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-fuchsia-700 to-purple-800 hover:from-fuchsia-600 hover:to-purple-700 text-white py-3 rounded-full font-bold shadow-lg shadow-fuchsia-900/40 transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-            >
-                {loading ? (
-                    <span className="animate-pulse">AI Thinking...</span>
-                ) : (
-                    <>
-                    <span>✨ Generate Caption</span>
-                    </>
-                )}
-            </button>
+            <div className="text-center text-xs text-gray-400">
+                <p>图片已保存到浏览器本地存储</p>
+                <p className="mt-1">刷新页面不会丢失</p>
+            </div>
         </div>
       </div>
     </div>
